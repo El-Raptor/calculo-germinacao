@@ -32,7 +32,6 @@ public class CalculoGerminacao implements EventoProgramavelJava {
 	 */
 	public void afterInsert(PersistenceEvent ctx) throws Exception {
 		event(ctx);
-
 	}
 
 	@Override
@@ -43,20 +42,6 @@ public class CalculoGerminacao implements EventoProgramavelJava {
 	public void beforeUpdate(PersistenceEvent event) throws Exception {
 		// TODO: Não pode alterar se estiver aprovado
 	}
-
-	@Override
-	public void afterDelete(PersistenceEvent event) throws Exception {
-	}
-
-	@Override
-	public void beforeCommit(TransactionContext tranCtx) throws Exception {}
-
-	@Override
-	public void beforeDelete(PersistenceEvent event) throws Exception {
-	}
-
-	@Override
-	public void beforeInsert(PersistenceEvent event) throws Exception {}
 
 	/**
 	 * Evento que realiza o cálculo e o insere no resultado do laudo.
@@ -178,5 +163,19 @@ public class CalculoGerminacao implements EventoProgramavelJava {
 		
 		return result;
 	}
+	
+	@Override
+	public void afterDelete(PersistenceEvent event) throws Exception {
+	}
+
+	@Override
+	public void beforeCommit(TransactionContext tranCtx) throws Exception {}
+
+	@Override
+	public void beforeDelete(PersistenceEvent event) throws Exception {
+	}
+
+	@Override
+	public void beforeInsert(PersistenceEvent event) throws Exception {}
 
 }
