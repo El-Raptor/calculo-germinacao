@@ -14,6 +14,14 @@ import br.com.sankhya.jape.wrapper.JapeWrapper;
 import br.com.sankhya.modelcore.MGEModelException;
 import br.com.sankhya.modelcore.util.DynamicEntityNames;
 
+/**
+ * Esse programa realiza o cálculo de germinação das 
+ * sementes por leitura realizada.
+ * 
+ * @author Felipe S. Lopes (felipe.lopes@sankhya.com.br)
+ * @since 2023-10-03
+ * 
+ */
 public class CalculoGerminacao implements EventoProgramavelJava {
 
 	@Override
@@ -26,6 +34,7 @@ public class CalculoGerminacao implements EventoProgramavelJava {
 		JapeSession.SessionHandle hnd = null;
 		try {
 			ArrayList<Integer> germibox = new ArrayList<>();
+			int result = 0;
 
 			DynamicVO leituraVO = (DynamicVO) ctx.getVo();
 
@@ -35,45 +44,64 @@ public class CalculoGerminacao implements EventoProgramavelJava {
 			germibox.add(leituraVO.asInt("GERMIBOX4"));
 
 			Collections.sort(germibox);
-
-			// Calcula a média
-			double media = (germibox.get(0) + germibox.get(1) + germibox.get(2) + Double.valueOf(germibox.get(3))) / 4;
-			int result = (int) Math.round(media);
-
-			// Obtém a tolerância.
-			int tolerancia = getTolerancia(ctx, result);
 			
-			// TODO: Validar a quantidade de Germibox
-			// TODO: Validar se os valores da Germibox está entre 0 e 100
-			// TODO: Pegar o CODCLC para a leitura correta
+			// Valida se o valor é acima de 100 
+			if (germibox.removeIf(n -> (n > 100)))
+				throw new Exception("Não é permitido um valor acima de 100.");
 			
+			// Valida se o valor é abaixo de 0
+			if (germibox.removeIf(n -> (n < 0)))
+				throw new Exception("Não é permitido um valor abaixo de 0.");
+			
+			// Remove germibox com o valor 0
+			germibox.removeIf(n -> (n == 0));
 
-			// Se a diferença do maior valor com o menor valor for menor que a tolerancia.
-			if (germibox.get(3) - germibox.get(0) > tolerancia) {
-
+			if (germibox.size() == 4) {
+				// Calcula a média
+				double media = (germibox.get(0) + germibox.get(1) + germibox.get(2) + Double.valueOf(germibox.get(3))) / 4;
+				result = (int) Math.round(media);
+				
+				// Obtém a tolerância.
+				int tolerancia = getTolerancia(ctx, result);
+				
+	
+				// Se a diferença do maior valor com o menor valor for menor que a tolerancia.
+				if (germibox.get(3) - germibox.get(0) > tolerancia) {
+	
+					// Calcula a média.
+					media = (germibox.get(1) + germibox.get(2) + Double.valueOf(germibox.get(3))) / 3;
+					result = (int) Math.round(media);
+	
+					// Obtém tolerância
+					tolerancia = getTolerancia(ctx, result);
+	
+					// Se a diferença do maior valor com o menor valor for menor que a tolerancia.
+					if (germibox.get(3) - germibox.get(1) > tolerancia) 
+						throw new Exception("Diferença de valores lidos é maior do que a tolerância.");
+					
+				} // end if
+			} else if (germibox.size() == 3) {
 				// Calcula a média.
-				media = (germibox.get(1) + germibox.get(2) + Double.valueOf(germibox.get(3))) / 3;
+				double media = (germibox.get(0) + germibox.get(1) + Double.valueOf(germibox.get(2))) / 3;
 				result = (int) Math.round(media);
 
-				// Obtém tolerância
-				tolerancia = getTolerancia(ctx, result);
+				int tolerancia = getTolerancia(ctx, result); // Obtém tolerância
 
 				// Se a diferença do maior valor com o menor valor for menor que a tolerancia.
-				if (germibox.get(3) - germibox.get(1) > tolerancia) {
-					// TODO: Aviso mostrando que a tolerancia é maior de novo.
-					return;
-				}
-			}
-
+				if (germibox.get(2) - germibox.get(0) > tolerancia) 
+					throw new Exception("Diferença de valores lidos é maior do que a tolerância.");
+				
+			} else 
+				throw new Exception("Número de Germibox incorreto. Favor informar pelo menos 3 leituras.");
+				
+			
 			// Insere no resultado a media.
 			JapeWrapper laudoDAO = JapeFactory.dao(DynamicEntityNames.ITEM_LAUDO);
-			laudoDAO.prepareToUpdateByPK(leituraVO.asBigDecimal("NUCLL"), new BigDecimal(7) /* CODCLC */)
+			laudoDAO.prepareToUpdateByPK(leituraVO.asBigDecimal("NUCLL"), leituraVO.asBigDecimal("CODCLC"))
 					.set("RESULTADO", new BigDecimal(result))
 					.update();
 			//DynamicVO laudoVO = laudoDAO.findByPK(leituraVO.asBigDecimal("NUCLL"), new BigDecimal(7));
 
-			/*if (result != 0)
-				throw new Exception("NUCLL " + laudoVO.asBigDecimal("NUCLL"));*/
 
 		} catch (Exception e) {
 			MGEModelException.throwMe(e);
