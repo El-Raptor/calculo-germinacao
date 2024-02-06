@@ -31,6 +31,39 @@ public class CalculoGerminacao implements EventoProgramavelJava {
 	 * @ejb.transaction type="Required"
 	 */
 	public void afterInsert(PersistenceEvent ctx) throws Exception {
+		event(ctx);
+
+	}
+
+	@Override
+	public void afterUpdate(PersistenceEvent ctx) throws Exception {
+		event(ctx);
+	}
+	@Override
+	public void beforeUpdate(PersistenceEvent event) throws Exception {
+		// TODO: Não pode alterar se estiver aprovado
+	}
+
+	@Override
+	public void afterDelete(PersistenceEvent event) throws Exception {
+	}
+
+	@Override
+	public void beforeCommit(TransactionContext tranCtx) throws Exception {}
+
+	@Override
+	public void beforeDelete(PersistenceEvent event) throws Exception {
+	}
+
+	@Override
+	public void beforeInsert(PersistenceEvent event) throws Exception {}
+
+	/**
+	 * Evento que realiza o cálculo e o insere no resultado do laudo.
+	 * @param ctx
+	 * @throws MGEModelException
+	 */
+	private void event(PersistenceEvent ctx) throws MGEModelException {
 		JapeSession.SessionHandle hnd = null;
 		try {
 			ArrayList<Integer> germibox = new ArrayList<>();
@@ -56,42 +89,11 @@ public class CalculoGerminacao implements EventoProgramavelJava {
 			// Remove germibox com o valor 0
 			germibox.removeIf(n -> (n == 0));
 
-			if (germibox.size() == 4) {
-				// Calcula a média
-				double media = (germibox.get(0) + germibox.get(1) + germibox.get(2) + Double.valueOf(germibox.get(3))) / 4;
-				result = (int) Math.round(media);
-				
-				// Obtém a tolerância.
-				int tolerancia = getTolerancia(ctx, result);
-				
-	
-				// Se a diferença do maior valor com o menor valor for menor que a tolerancia.
-				if (germibox.get(3) - germibox.get(0) > tolerancia) {
-	
-					// Calcula a média.
-					media = (germibox.get(1) + germibox.get(2) + Double.valueOf(germibox.get(3))) / 3;
-					result = (int) Math.round(media);
-	
-					// Obtém tolerância
-					tolerancia = getTolerancia(ctx, result);
-	
-					// Se a diferença do maior valor com o menor valor for menor que a tolerancia.
-					if (germibox.get(3) - germibox.get(1) > tolerancia) 
-						throw new Exception("Diferença de valores lidos é maior do que a tolerância.");
-					
-				} // end if
-			} else if (germibox.size() == 3) {
-				// Calcula a média.
-				double media = (germibox.get(0) + germibox.get(1) + Double.valueOf(germibox.get(2))) / 3;
-				result = (int) Math.round(media);
-
-				int tolerancia = getTolerancia(ctx, result); // Obtém tolerância
-
-				// Se a diferença do maior valor com o menor valor for menor que a tolerancia.
-				if (germibox.get(2) - germibox.get(0) > tolerancia) 
-					throw new Exception("Diferença de valores lidos é maior do que a tolerância.");
-				
-			} else 
+			if (germibox.size() == 4) 
+				result = calculaGermi(ctx, germibox);
+			else if (germibox.size() == 3) 
+				result = calculaGermi3(ctx, germibox);
+			else 
 				throw new Exception("Número de Germibox incorreto. Favor informar pelo menos 3 leituras.");
 				
 			
@@ -108,33 +110,9 @@ public class CalculoGerminacao implements EventoProgramavelJava {
 		} finally {
 			JapeSession.close(hnd);
 		}
-
 	}
-
-	@Override
-	public void afterUpdate(PersistenceEvent event) throws Exception {
-		// TODO: Refazer o cálculo se alterar.
-	}
-	@Override
-	public void beforeUpdate(PersistenceEvent event) throws Exception {
-		// TODO: Não pode alterar se estiver aprovado
-	}
-
-	@Override
-	public void afterDelete(PersistenceEvent event) throws Exception {
-	}
-
-	@Override
-	public void beforeCommit(TransactionContext tranCtx) throws Exception {}
-
-	@Override
-	public void beforeDelete(PersistenceEvent event) throws Exception {
-	}
-
-	@Override
-	public void beforeInsert(PersistenceEvent event) throws Exception {}
-
-
+	
+	
 	/**
 	 * Obtém a tolerância do valor de germinação.
 	 * 
@@ -148,6 +126,57 @@ public class CalculoGerminacao implements EventoProgramavelJava {
 		DynamicVO germiVO = (DynamicVO) germiDAO.findOne("RESULT = " + media);
 
 		return germiVO.asInt("TOLERANCIA");
+	}
+	
+	/**
+	 * Realiza o cálculo de germinação.
+	 * @param ctx
+	 * @param germibox
+	 * @return int O resultado do cálculo.
+	 * @throws Exception
+	 */
+	private int calculaGermi(PersistenceEvent ctx, ArrayList<Integer> germibox) throws Exception {
+		// Calcula a média
+		double media = (germibox.get(0) + germibox.get(1) + germibox.get(2) + Double.valueOf(germibox.get(3))) / 4;
+		int result = (int) Math.round(media);
+		
+		// Obtém a tolerância.
+		int tolerancia = getTolerancia(ctx, result);
+		
+
+		// Se a diferença do maior valor com o menor valor for menor que a tolerancia.
+		if (germibox.get(3) - germibox.get(0) > tolerancia) {
+
+			// Calcula a média.
+			media = (germibox.get(1) + germibox.get(2) + Double.valueOf(germibox.get(3))) / 3;
+			result = (int) Math.round(media);
+
+			// Obtém tolerância
+			tolerancia = getTolerancia(ctx, result);
+
+			// Se a diferença do maior valor com o menor valor for menor que a tolerancia.
+			if (germibox.get(3) - germibox.get(1) > tolerancia) 
+				throw new Exception("Diferença de valores lidos é maior do que a tolerância.");
+			
+		} // end if
+		
+		return result;
+	}
+	
+	private int calculaGermi3(PersistenceEvent ctx, ArrayList<Integer> germibox) throws Exception {
+		int result;
+		
+		// Calcula a média.
+		double media = (germibox.get(0) + germibox.get(1) + Double.valueOf(germibox.get(2))) / 3;
+		result = (int) Math.round(media);
+
+		int tolerancia = getTolerancia(ctx, result); // Obtém tolerância
+
+		// Se a diferença do maior valor com o menor valor for menor que a tolerancia.
+		if (germibox.get(2) - germibox.get(0) > tolerancia) 
+			throw new Exception("Diferença de valores lidos é maior do que a tolerância.");
+		
+		return result;
 	}
 
 }
